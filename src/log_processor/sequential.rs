@@ -2,7 +2,6 @@ use std::{
     collections::HashMap,
     fs::File,
     io::{BufRead, BufReader},
-    sync::Arc,
 };
 
 use crate::{
@@ -13,7 +12,7 @@ use crate::{
 
 pub struct SequentialLogProcessor<'a> {
     pub file_path: &'a String,
-    pub cfg: Arc<Config>,
+    pub cfg: &'a Config,
 }
 
 impl<'a> LogProcessor for SequentialLogProcessor<'a> {
@@ -23,24 +22,39 @@ impl<'a> LogProcessor for SequentialLogProcessor<'a> {
         })?;
 
         let mut counts: HashMap<String, u64> = HashMap::new();
+        let mut line = String::new();
+        let mut reader = BufReader::new(file);
 
-        for line in BufReader::new(file).lines() {
-            let line = line.map_err(|err| {
-                LogAnalyzerErrors::IoError(self.file_path, format!("Unable to read log line {err}"))
+        loop {
+            line.clear();
+            let bytes_read = reader.read_line(&mut line).map_err(|err| {
+                LogAnalyzerErrors::IoError(self.file_path, format!("Read error: {err}"))
             })?;
 
-            let res = process_log_line(self.cfg.clone(), &line);
+            if bytes_read == 0 {
+                break; // EOF
+            }
 
-            match res {
-                Ok(log_entry) => match self.cfg.target {
-                    Target::Level => {
-                        *counts.entry(log_entry.level.to_string()).or_insert(0) += 1;
+            let trimmed = line.trim_end();
+            if trimmed.is_empty() {
+                continue;
+            }
+            match process_log_line(&self.cfg, trimmed) {
+                Ok(log_entry) => {
+                    let key = match self.cfg.target {
+                        Target::Level => log_entry.level,
+                        Target::Service => log_entry.service,
+                    };
+
+                    if let Some(count) = counts.get_mut(key) {
+                        *count += 1;
+                    } else {
+                        counts.insert(key.to_owned(), 1);
                     }
-                    Target::Service => {
-                        *counts.entry(log_entry.service.to_string()).or_insert(0) += 1;
-                    }
-                },
-                Err(_) => *counts.entry("MALFORMED".to_string()).or_insert(0) += 1,
+                }
+                Err(_) => {
+                    *counts.entry("MALFORMED".to_string()).or_insert(0) += 1;
+                }
             }
         }
 

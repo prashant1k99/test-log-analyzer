@@ -1,4 +1,4 @@
-delimiter = ","
+delimiter = "|"
 levels = ["INFO", "WARN", "ERROR", "DEBUG"]
 target = "level"
 parallel = true

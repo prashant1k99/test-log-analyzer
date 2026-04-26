@@ -1,4 +1,4 @@
-use std::{env, sync::Arc};
+use std::env;
 
 use test_log_analyzer::{
     config::Config,
@@ -26,7 +26,7 @@ fn main() {
         std::process::exit(1);
     }
 
-    let config = match args.get(2) {
+    let cfg = match args.get(2) {
         Some(custom_file) => match Config::read_from_file(custom_file) {
             Ok(cfg) => cfg,
             Err(e) => {
@@ -36,7 +36,6 @@ fn main() {
         },
         None => Config::default(),
     };
-    let cfg = Arc::new(config);
 
     let file_size = match file_handler.file_size() {
         Ok(size) => size,
@@ -51,12 +50,12 @@ fn main() {
     let processor: Box<dyn LogProcessor + '_> = if execute_parallel {
         Box::new(ParallelLogProcessor {
             file_path: log_file_path,
-            cfg,
+            cfg: &cfg,
         })
     } else {
         Box::new(SequentialLogProcessor {
             file_path: log_file_path,
-            cfg,
+            cfg: &cfg,
         })
     };
 

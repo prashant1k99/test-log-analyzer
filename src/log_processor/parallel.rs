@@ -2,7 +2,6 @@ use std::{
     collections::HashMap,
     fs::File,
     io::{self, BufRead, BufReader, Seek, SeekFrom},
-    sync::Arc,
     thread,
 };
 
@@ -14,7 +13,7 @@ use crate::{
 
 pub struct ParallelLogProcessor<'a> {
     pub file_path: &'a String,
-    pub cfg: Arc<Config>,
+    pub cfg: &'a Config,
 }
 
 impl<'a> ParallelLogProcessor<'a> {
@@ -71,7 +70,7 @@ impl<'a> ParallelLogProcessor<'a> {
         file_path: &'a str,
         start: u64,
         end: u64,
-        cfg: Arc<Config>,
+        cfg: &'a Config,
     ) -> Result<HashMap<String, u64>, LogAnalyzerErrors<'a>> {
         let file = File::open(file_path).map_err(|err| {
             LogAnalyzerErrors::IoError(file_path, format!("Unable to read log file {err}"))
@@ -88,8 +87,9 @@ impl<'a> ParallelLogProcessor<'a> {
 
         let mut counts: HashMap<String, u64> = HashMap::new();
 
+        let mut line = String::new();
         while current_pos < end {
-            let mut line = String::new();
+            line.clear();
             let bytes_read = reader.read_line(&mut line).map_err(|err| {
                 LogAnalyzerErrors::IoError(file_path, format!("Unable to read log file {err}"))
             })?;
@@ -98,15 +98,17 @@ impl<'a> ParallelLogProcessor<'a> {
             }
             current_pos += bytes_read as u64;
 
-            if let Ok(log_entry) = process_log_line(cfg.clone(), &line) {
-                match cfg.target {
-                    Target::Level => {
-                        *counts.entry(log_entry.level.to_string()).or_insert(0) += 1;
-                    }
-                    Target::Service => {
-                        *counts.entry(log_entry.service.to_string()).or_insert(0) += 1;
-                    }
-                }
+            let trimmed = line.trim_end();
+            if trimmed.is_empty() {
+                continue;
+            }
+
+            if let Ok(log_entry) = process_log_line(&cfg, &line) {
+                let key = match cfg.target {
+                    Target::Level => log_entry.level,
+                    Target::Service => log_entry.service,
+                };
+                *counts.entry(key.to_owned()).or_insert(0) += 1;
             } else {
                 *counts.entry("MALFORMED".to_string()).or_insert(0) += 1;
             }
@@ -134,9 +136,8 @@ impl<'a> LogProcessor for ParallelLogProcessor<'a> {
             let mut handles = Vec::new();
 
             for (start, end) in boundaries {
-                let handle = s.spawn(move || {
-                    Self::process_chunk(self.file_path, start, end, self.cfg.clone())
-                });
+                let handle =
+                    s.spawn(move || Self::process_chunk(self.file_path, start, end, self.cfg));
                 handles.push(handle);
             }
 

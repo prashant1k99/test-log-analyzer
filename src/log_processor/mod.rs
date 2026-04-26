@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use crate::{
     config::{Config, Target},
@@ -37,11 +37,11 @@ pub struct LogEntry<'a> {
     _message: &'a str,
 }
 
-pub fn process_log_line<'a>(cfg: Arc<Config>, line: &'a str) -> Result<LogEntry<'a>, String> {
+pub fn process_log_line<'a>(cfg: &Config, line: &'a str) -> Result<LogEntry<'a>, String> {
     let content: Vec<&str> = line.split(&cfg.delimiter).collect();
 
     if content.len() != 4 {
-        return Err(format!("Malformed log: {}", line));
+        return Err("Malformed".to_string());
     }
 
     let level = if cfg.levels.contains(&content[1].to_string()) {
