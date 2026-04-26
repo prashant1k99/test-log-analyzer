@@ -160,3 +160,24 @@ impl<'a> LogProcessor for ParallelLogProcessor<'a> {
         })
     }
 }
+
+#[cfg(test)]
+mod parallel_tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn test_find_chunk_boundaries() {
+        let mut file = NamedTempFile::new().unwrap();
+        for _ in 0..10 {
+            writeln!(file, "123456789").unwrap();
+        }
+
+        let boundaries = ParallelLogProcessor::find_chunk_boundaries(file.as_file(), 2).unwrap();
+
+        assert_eq!(boundaries.len(), 2);
+        assert!(boundaries[0].1 > 0);
+        assert_eq!(boundaries[1].1, 100); // Total size
+    }
+}

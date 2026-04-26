@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub enum LogAnalyzerErrors<'a> {
     LogFileNotProvided,
     FileNotFound(&'a String),

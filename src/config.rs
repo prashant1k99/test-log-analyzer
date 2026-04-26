@@ -48,3 +48,30 @@ impl Config {
         Ok(config)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_config() {
+        let cfg = Config::default();
+        assert_eq!(cfg.delimiter, "|");
+        assert_eq!(cfg.target, Target::Level);
+        assert!(cfg.levels.contains(&"ERROR".to_string()));
+    }
+
+    #[test]
+    fn test_toml_deserialization() {
+        let toml_str = r#"
+            delimiter = ","
+            levels = ["DEBUG", "INFO"]
+            target = "service"
+            parallel = false
+        "#;
+        let cfg: Config = toml::from_str(toml_str).unwrap();
+        assert_eq!(cfg.delimiter, ",");
+        assert_eq!(cfg.target, Target::Service);
+        assert_eq!(cfg.parallel, Some(false));
+    }
+}
