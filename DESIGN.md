@@ -17,7 +17,23 @@ The tool dynamically chooses an execution strategy based on file size:
 
 ---
 
-## 2. Parsing Logic & Memory Efficiency
+## 2. Flexible Configuration & Targeting
+
+The analyzer is driven by a `config.toml` file that allows users to change the aggregation logic without recompiling the code.
+Dynamic Counting Targets
+
+The `target` field in the configuration determines the "Key" used for the final summary:
+- `target = "level"`: The analyzer aggregates counts based on the importance of the log (e.g., how many `ERRORs` vs `INFOs`).
+- `target = "service"`: The analyzer aggregates counts based on the originating source (e.g., which microservice is generating the most logs).
+
+Configuration Schema
+- `delimiter`: Defines the character separating fields (default: |).
+- `levels`: A whitelist of valid log levels. Anything not in this list is categorized as `UNKNOWN`.
+- `parallel`: A boolean toggle to force or disable multi-threading.
+
+---
+
+## 3. Parsing Logic & Memory Efficiency
 
 ### Zero-Copy Mechanics
 Parsing is handled by the `process_log_line` function. 
@@ -31,7 +47,7 @@ While parsing is zero-copy, some allocations are unavoidable:
 
 ---
 
-## 3. Parallel Chunking Logic
+## 4. Parallel Chunking Logic
 Parallel processing of a text file is non-trivial because a simple byte-offset split could cut a log line in half. 
 
 **The Solution:**
@@ -42,7 +58,7 @@ Parallel processing of a text file is non-trivial because a simple byte-offset s
 
 ---
 
-## 4. Performance Trade-offs
+## 5. Performance Trade-offs
 
 | Feature | Choice | Trade-off |
 | :--- | :--- | :--- |
@@ -52,13 +68,13 @@ Parallel processing of a text file is non-trivial because a simple byte-offset s
 
 ---
 
-## 5. Scalability
+## 6. Scalability
 * **Memory Complexity:** $O(K)$, where $K$ is the number of unique log levels/services. Memory usage does not increase with the number of log lines.
 * **Time Complexity:** $O(N/P)$, where $N$ is the number of lines and $P$ is the number of CPU cores (in parallel mode).
 
 ---
 
-## 6. How to Run
+## 7. How to Run
 1.  **Configure:** Modify `config.toml` to set your desired delimiter and target (Level or Service).
 2.  **Execute:**
     ```bash
