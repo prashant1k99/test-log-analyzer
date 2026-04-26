@@ -1,0 +1,3 @@
+delimiter = ","
+levels = ["INFO", "WARN", "ERROR", "DEBUG"]
+target = "level"
